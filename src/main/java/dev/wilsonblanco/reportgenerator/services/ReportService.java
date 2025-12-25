@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -35,6 +36,15 @@ public class ReportService {
     private final JobLauncher jobLauncher;
 
     private final JobExplorer jobExplorer;
+
+    private static final Pattern FORBIDDEN_KEYWORDS = Pattern.compile(
+            "(?i)\\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|EXEC|MERGE|REPLACE|CALL)\\b"
+    );
+
+    // Obliga a que la consulta empiece por SELECT o WITH (ignorando mayúsculas)
+    private static final Pattern MUST_START_WITH_SELECT = Pattern.compile(
+            "(?i)^\\s*(SELECT|WITH)\\b.*", Pattern.DOTALL
+    );
 
     public ResponseEntity<GlobalResponse> generateExcelReport(ReportRequest request) throws Exception {
         return launchJob(request, excelExportJob, ".xlsx");
@@ -89,20 +99,43 @@ public class ReportService {
     }
 
     private String resolveSqlQuery(ReportRequest request) {
+
+        //El usuario envió SQL crudo
         if (request.sqlQuery() != null && !request.sqlQuery().isBlank()) {
-            return request.sqlQuery();
+            String sql = request.sqlQuery();
+            validateReadOnlySql(sql); // <--- AQUÍ SE APLICA EL FILTRO DE SEGURIDAD
+            return sql;
         }
 
+        //El usuario envió Tabla y Columnas
         if (request.tableName() != null && !request.tableName().isBlank()
                 && request.columns() != null && !request.columns().isEmpty()) {
             return buildSqlFromColumns(request.tableName(), request.columns());
         }
 
-        throw new IllegalArgumentException("Debes enviar 'sqlQuery' O 'tableName' + 'columns'");
+        throw new IllegalArgumentException("Debes proporcionar 'sqlQuery' O una combinación de 'tableName' y 'columns'.");
+    }
+
+    private void validateReadOnlySql(String sql) {
+        String cleanSql = sql.trim();
+
+        // 1. Validar inicio (Case Insensitive gracias a (?i) en el patrón)
+        if (!MUST_START_WITH_SELECT.matcher(cleanSql).matches()) {
+            throw new SecurityException("Por seguridad, la consulta debe comenzar con 'SELECT' o 'WITH'.");
+        }
+
+        // 2. Buscar palabras prohibidas (Case Insensitive gracias a (?i))
+        if (FORBIDDEN_KEYWORDS.matcher(cleanSql).find()) {
+            throw new SecurityException("La consulta contiene comandos prohibidos (UPDATE, DELETE, DROP, etc).");
+        }
+
+        // 3. Evitar inyección de múltiples comandos (;)
+        if (cleanSql.contains(";") && cleanSql.indexOf(";") != cleanSql.length() - 1) {
+            throw new SecurityException("No se permiten múltiples sentencias separadas por punto y coma (;).");
+        }
     }
 
     private String buildSqlFromColumns(String tableName, List<ReportRequest.ReportColumn> columns) {
-
         String columnsPart = columns.stream()
                 .map(col -> {
                     String cleanName = col.name().replaceAll("[^a-zA-Z0-9_.]", "");
@@ -114,7 +147,7 @@ public class ReportService {
                 })
                 .collect(Collectors.joining(", "));
 
-        // Resultado Final: SELECT id AS "Código", name AS "Nombre Cliente" FROM usuarios
         return String.format("SELECT %s FROM %s", columnsPart, tableName);
     }
+
 }
