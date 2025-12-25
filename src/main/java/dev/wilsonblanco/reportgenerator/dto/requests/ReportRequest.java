@@ -2,6 +2,8 @@ package dev.wilsonblanco.reportgenerator.dto.requests;
 
 import jakarta.validation.constraints.NotBlank;
 
+import java.util.List;
+
 public record ReportRequest(
         @NotBlank(message = "Debes seleccionar una conexión")
         String connectionUuid,
@@ -9,10 +11,19 @@ public record ReportRequest(
         @NotBlank(message = "El nombre del reporte es obligatorio")
         String name,
 
-        @NotBlank(message = "Debes proporcionar una consulta SQL")
+        @NotBlank(message = "La ruta de destino es obligatoria")
+        String destinationPath,
+
         String sqlQuery,
 
-        @NotBlank(message = "La ruta de destino es obligatoria")
-        String destinationPath // <--- EJ: "C:/Usuarios/Juan/Documentos/Reporte_Ventas.xlsx"
+        String tableName,
+
+        List<ReportColumn> columns
 ) {
+
+    public record ReportColumn(
+            String name,
+            String alias
+    ) {
+    }
 }

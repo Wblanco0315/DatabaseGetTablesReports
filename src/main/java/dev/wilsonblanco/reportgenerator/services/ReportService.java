@@ -15,7 +15,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -43,8 +45,8 @@ public class ReportService {
     }
 
     private ResponseEntity<GlobalResponse> launchJob(ReportRequest request, Job job, String extension) throws Exception {
-        // 1. Construir ruta
         String basePath = request.destinationPath();
+        String finalQuery = resolveSqlQuery(request);
         if (!basePath.endsWith(File.separator) && !basePath.endsWith("/")) {
             basePath += File.separator;
         }
@@ -54,7 +56,7 @@ public class ReportService {
         JobParameters jobParameters = new JobParametersBuilder()
                 .addString("connectionUuid", request.connectionUuid())
                 .addString("outputFilePath", fullPath)
-                .addString("sqlQuery", request.sqlQuery())
+                .addString("sqlQuery", finalQuery)
                 .addLong("timestamp", System.currentTimeMillis())
                 .toJobParameters();
 
@@ -70,7 +72,6 @@ public class ReportService {
         );
     }
 
-
     public ResponseEntity<GlobalResponse> checkStatus(Long jobId) throws Exception {
         var execution = jobExplorer.getJobExecution(jobId);
 
@@ -85,5 +86,35 @@ public class ReportService {
                         "isRunning", execution.isRunning()
                 ))
         );
+    }
+
+    private String resolveSqlQuery(ReportRequest request) {
+        if (request.sqlQuery() != null && !request.sqlQuery().isBlank()) {
+            return request.sqlQuery();
+        }
+
+        if (request.tableName() != null && !request.tableName().isBlank()
+                && request.columns() != null && !request.columns().isEmpty()) {
+            return buildSqlFromColumns(request.tableName(), request.columns());
+        }
+
+        throw new IllegalArgumentException("Debes enviar 'sqlQuery' O 'tableName' + 'columns'");
+    }
+
+    private String buildSqlFromColumns(String tableName, List<ReportRequest.ReportColumn> columns) {
+
+        String columnsPart = columns.stream()
+                .map(col -> {
+                    String cleanName = col.name().replaceAll("[^a-zA-Z0-9_.]", "");
+                    if (col.alias() != null && !col.alias().isBlank()) {
+                        return String.format("%s AS \"%s\"", cleanName, col.alias());
+                    } else {
+                        return cleanName;
+                    }
+                })
+                .collect(Collectors.joining(", "));
+
+        // Resultado Final: SELECT id AS "Código", name AS "Nombre Cliente" FROM usuarios
+        return String.format("SELECT %s FROM %s", columnsPart, tableName);
     }
 }
