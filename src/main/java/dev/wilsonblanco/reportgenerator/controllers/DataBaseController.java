@@ -1,5 +1,6 @@
 package dev.wilsonblanco.reportgenerator.controllers;
 
+import dev.wilsonblanco.reportgenerator.dto.responses.GlobalResponse;
 import dev.wilsonblanco.reportgenerator.services.DataBaseConnectionService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -19,8 +20,13 @@ public class DataBaseController {
 
     @GetMapping("/tables/{connectionUuid}")
     public ResponseEntity<List<String>> getTables(@PathVariable String connectionUuid) throws Exception {
-            return connectionService.listTables(connectionUuid);
+        return connectionService.listTables(connectionUuid);
     }
 
+    @GetMapping("/columns/{connectionUuid}/{tableName}")
+    public ResponseEntity<GlobalResponse> getColumns(@PathVariable String connectionUuid, @PathVariable String tableName) throws Exception {
+        return connectionService.getTableColumns(connectionUuid, tableName);
+
+    }
 
 }

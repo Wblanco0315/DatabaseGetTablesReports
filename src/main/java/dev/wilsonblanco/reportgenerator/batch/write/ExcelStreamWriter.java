@@ -1,4 +1,4 @@
-package dev.wilsonblanco.reportgenerator.batch;
+package dev.wilsonblanco.reportgenerator.batch.write;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;

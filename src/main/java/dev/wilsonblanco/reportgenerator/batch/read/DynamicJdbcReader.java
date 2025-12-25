@@ -1,4 +1,4 @@
-package dev.wilsonblanco.reportgenerator.batch;
+package dev.wilsonblanco.reportgenerator.batch.read;
 
 import dev.wilsonblanco.reportgenerator.services.DataBaseConnectionService;
 import lombok.RequiredArgsConstructor;

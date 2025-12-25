@@ -10,54 +10,80 @@ import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+
+import java.io.File;
+import java.util.Map;
 
 @RequiredArgsConstructor
 @Service
 public class ReportService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ReportService.class);
-    private final Job exportJob;
+
+    @Qualifier("excelExportJob")
+    private final Job excelExportJob;
+
+    @Qualifier("csvExportJob")
+    private final Job csvExportJob;
+
+    @Qualifier("asyncJobLauncher")
     private final JobLauncher jobLauncher;
+
     private final JobExplorer jobExplorer;
 
     public ResponseEntity<GlobalResponse> generateExcelReport(ReportRequest request) throws Exception {
-        LOGGER.info("Try Generating excel report job started for connectionUuid: {}", request.connectionUuid());
+        return launchJob(request, excelExportJob, ".xlsx");
+    }
 
-        String fullPath =  request.destinationPath()+ request.name()+ ".xlsx";
+    public ResponseEntity<GlobalResponse> generateCsvReport(ReportRequest request) throws Exception {
+        return launchJob(request, csvExportJob, ".csv");
+    }
 
+    private ResponseEntity<GlobalResponse> launchJob(ReportRequest request, Job job, String extension) throws Exception {
+        // 1. Construir ruta
+        String basePath = request.destinationPath();
+        if (!basePath.endsWith(File.separator) && !basePath.endsWith("/")) {
+            basePath += File.separator;
+        }
+        String fullPath = basePath + request.name() + extension;
+
+        // 2. Parámetros
         JobParameters jobParameters = new JobParametersBuilder()
                 .addString("connectionUuid", request.connectionUuid())
                 .addString("outputFilePath", fullPath)
                 .addString("sqlQuery", request.sqlQuery())
-                .addLong("timestamp", System.currentTimeMillis()) // Para asegurar unicidad
+                .addLong("timestamp", System.currentTimeMillis())
                 .toJobParameters();
 
-        var jobExecution = jobLauncher.run(exportJob, jobParameters);
+        // 3. Ejecutar
+        var execution = jobLauncher.run(job, jobParameters);
 
-        LOGGER.info("Generating excel report job  for connectionUuid: {}", request.connectionUuid());
         return ResponseEntity.ok(
-                GlobalResponse.success("excel report job has been started")
+                GlobalResponse.success("Reporte iniciado", Map.of(
+                        "jobId", execution.getId(),
+                        "status", "STARTED",
+                        "path", fullPath
+                ))
         );
     }
 
-    public ResponseEntity<GlobalResponse> generateCsvReport(ReportRequest request) throws Exception {
-        LOGGER.info("Try Generating csv report job started for connectionUuid: {}", request.connectionUuid());
 
-        JobParameters jobParameters = new JobParametersBuilder()
-                .addString("connectionUuid", request.connectionUuid())
-                .addString("outputFilePath", request.destinationPath())
-                .addString("sqlQuery", request.sqlQuery())
-                .addLong("timestamp", System.currentTimeMillis()) // Para asegurar unicidad
-                .toJobParameters();
+    public ResponseEntity<GlobalResponse> checkStatus(Long jobId) throws Exception {
+        var execution = jobExplorer.getJobExecution(jobId);
 
+        if (execution == null) {
+            throw new Exception("No se encontró ningún trabajo con ID: " + jobId);
+        }
 
-        var jobExecution = jobLauncher.run(exportJob, jobParameters);
-
-        LOGGER.info("Generating csv report job  for connectionUuid: {}", request.connectionUuid());
         return ResponseEntity.ok(
-                GlobalResponse.success("csv report job has been started")
+                GlobalResponse.success("Estado del reporte", Map.of(
+                        "job_id", jobId,
+                        "status", execution.getStatus().toString(),
+                        "isRunning", execution.isRunning()
+                ))
         );
     }
 }

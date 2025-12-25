@@ -1,5 +1,6 @@
 package dev.wilsonblanco.reportgenerator.services;
 
+import dev.wilsonblanco.reportgenerator.dto.responses.GlobalResponse;
 import dev.wilsonblanco.reportgenerator.models.ConnectionCredentialsEntity;
 import dev.wilsonblanco.reportgenerator.repositories.ConnectionCredentialsRepository;
 import dev.wilsonblanco.reportgenerator.utils.EncryptorUtils;
@@ -89,5 +90,26 @@ public class DataBaseConnectionService {
         if ("postgres".equalsIgnoreCase(dbType)) return "org.postgresql.Driver";
         if ("sqlserver".equalsIgnoreCase(dbType)) return "com.microsoft.sqlserver.jdbc.SQLServerDriver";
         return "";
+    }
+
+    public ResponseEntity<GlobalResponse> getTableColumns(String connectionUuid, String tableName) throws Exception {
+        DataSource dataSource = getDataSource(connectionUuid);
+
+        try (Connection connection = dataSource.getConnection()) {
+
+            List<String> columns = new ArrayList<>();
+
+            ResultSet rs = connection.getMetaData().getColumns(null, null, tableName, null);
+
+            while (rs.next()) {
+                columns.add(rs.getString("COLUMN_NAME"));
+            }
+
+            return ResponseEntity.ok(
+                    GlobalResponse.success("Columnas obtenidas", columns)
+            );
+        } catch (SQLException e) {
+            throw new RuntimeException("Error al listar las columnas: " + e.getMessage(), e);
+        }
     }
 }
