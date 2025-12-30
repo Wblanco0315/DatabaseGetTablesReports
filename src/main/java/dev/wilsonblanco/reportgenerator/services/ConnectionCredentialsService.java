@@ -103,11 +103,10 @@ public class ConnectionCredentialsService {
     @Transactional
     public ResponseEntity<GlobalResponse> updateConnection(ConnectionCredentialsDto request) {
         try {
-            LOGGER.info("Updating DB connection with alias: {}", request.alias());
+            LOGGER.info("Updating DB connection with UUID: {}", request.uuid());
 
             ConnectionCredentialsEntity connectionEntity = repo.getByUuid(request.uuid()).orElseThrow(() -> new DbConnectionException("Database connection not found"));
-
-            connectionEntity.setDbType(request.dbType());
+            connectionEntity.setAlias(request.alias());
             connectionEntity.setHost(request.host());
             connectionEntity.setPort(request.port());
             connectionEntity.setDbName(request.dbName());
@@ -115,7 +114,7 @@ public class ConnectionCredentialsService {
             connectionEntity.setPassword(EncryptorUtils.encrypt(request.password()));
 
             repo.save(connectionEntity);
-            LOGGER.info("Database connection with alias {} successfully has been updated", request.alias());
+            LOGGER.info("Database connection with UUID {} successfully has been updated to", request.uuid());
         } catch (Exception e) {
             LOGGER.error("Error updating DB connection with alias: {}", request.alias(), e);
             throw new DbConnectionException("Failed to update database connection credentials");
