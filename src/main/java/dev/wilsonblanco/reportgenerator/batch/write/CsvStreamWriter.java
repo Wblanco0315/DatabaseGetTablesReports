@@ -1,4 +1,4 @@
-package dev.wilsonblanco.reportgenerator.batch;
+package dev.wilsonblanco.reportgenerator.batch.write;
 
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
