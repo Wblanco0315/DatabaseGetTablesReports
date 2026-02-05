@@ -1,5 +1,6 @@
 package dev.wilsonblanco.reportgenerator.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import jakarta.validation.constraints.*;
 import lombok.Builder;
 import org.springframework.validation.annotation.Validated;
@@ -32,6 +33,7 @@ public record ConnectionCredentialsDto(
         String username,
 
         @NotBlank(message = "La contraseña es obligatoria")
+        @JsonInclude(JsonInclude.Include.NON_EMPTY)
         String password
 ) {
 

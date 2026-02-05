@@ -5,6 +5,9 @@ import dev.wilsonblanco.reportgenerator.models.ConnectionCredentialsEntity;
 import dev.wilsonblanco.reportgenerator.repositories.ConnectionCredentialsRepository;
 import dev.wilsonblanco.reportgenerator.utils.EncryptorUtils;
 import lombok.RequiredArgsConstructor;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.stereotype.Service;
@@ -22,6 +25,7 @@ import java.util.Properties;
 public class DataBaseConnectionService {
 
     private final ConnectionCredentialsRepository repository;
+    private static final Logger LOGGER = LoggerFactory.getLogger(DataBaseConnectionService.class);
 
     public DataSource getDataSource(String connectionUuid) throws Exception {
         // 1. Buscar credenciales en H2
@@ -33,8 +37,6 @@ public class DataBaseConnectionService {
 
         // 3. Construir la URL JDBC adecuada
         String url = buildJdbcUrl(entity);
-
-        System.out.println("Conectando a la base de datos con URL: " + url);
 
         // 4. Crear el DataSource al vuelo
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
@@ -75,11 +77,11 @@ public class DataBaseConnectionService {
 
     private String buildJdbcUrl(ConnectionCredentialsEntity entity) {
         if ("postgres".equalsIgnoreCase(entity.getDbType())) {
-            // jdbc:postgresql://localhost:5432/mi_base
+
             return String.format("jdbc:postgresql://%s:%s/%s",
                     entity.getHost(), entity.getPort(), entity.getDbName());
         } else if ("sqlserver".equalsIgnoreCase(entity.getDbType())) {
-            // jdbc:sqlserver://localhost:1433;databaseName=mi_base;encrypt=true;trustServerCertificate=true;
+
             return String.format("jdbc:sqlserver://%s:%s;databaseName=%s;encrypt=true;trustServerCertificate=true;",
                     entity.getHost(), entity.getPort(), entity.getDbName());
         }
@@ -87,8 +89,22 @@ public class DataBaseConnectionService {
     }
 
     private String resolveDriverClass(String dbType) {
-        if ("postgres".equalsIgnoreCase(dbType)) return "org.postgresql.Driver";
-        if ("sqlserver".equalsIgnoreCase(dbType)) return "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+        LOGGER.info("Resolving driver class for database type: {}", dbType);
+
+        try {
+            if ("postgres".equalsIgnoreCase(dbType)) {
+                LOGGER.info("Using PostgreSQL JDBC driver");
+                return "org.postgresql.Driver";
+            }
+            if ("sqlserver".equalsIgnoreCase(dbType)) {
+                LOGGER.info("Using SQL Server JDBC driver");
+                return "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+            }
+        } catch (Exception e) {
+            LOGGER.error("Error resolving driver class for database type: {}", dbType, e);
+            throw new RuntimeException("Error resolviendo el driver JDBC para el tipo de base de datos: " + dbType, e);
+        }
+
         return "";
     }
 

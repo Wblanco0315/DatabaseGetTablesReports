@@ -13,7 +13,6 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +42,7 @@ public class ReportService {
 
     // Obliga a que la consulta empiece por SELECT o WITH (ignorando mayúsculas)
     private static final Pattern MUST_START_WITH_SELECT = Pattern.compile(
-            "(?i)^\\s*(SELECT|WITH)\\b.*", Pattern.DOTALL
+            "(?i)^\\s*(SELECT|WITH|DECLARE)\\b.*", Pattern.DOTALL
     );
 
     public ResponseEntity<GlobalResponse> generateExcelReport(ReportRequest request) throws Exception {
@@ -129,10 +128,6 @@ public class ReportService {
             throw new SecurityException("La consulta contiene comandos prohibidos (UPDATE, DELETE, DROP, etc).");
         }
 
-        // 3. Evitar inyección de múltiples comandos (;)
-        if (cleanSql.contains(";") && cleanSql.indexOf(";") != cleanSql.length() - 1) {
-            throw new SecurityException("No se permiten múltiples sentencias separadas por punto y coma (;).");
-        }
     }
 
     private String buildSqlFromColumns(String tableName, List<ReportRequest.ReportColumn> columns) {

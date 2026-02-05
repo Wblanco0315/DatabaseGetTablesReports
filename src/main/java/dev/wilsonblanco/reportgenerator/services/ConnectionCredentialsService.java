@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,7 +40,7 @@ public class ConnectionCredentialsService {
             LOGGER.info("Database connection with alias {} successfully has been created", request.alias());
         } catch (Exception e) {
             LOGGER.error("Error creating DB connection with alias: {}", request.alias(), e);
-            throw new DbConnectionException("Failed to save database connection credentials");
+            throw new DbConnectionException("Failed to save database connection credentials", HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
         return ResponseEntity.ok(GlobalResponse.success("Database connection created successfully"));
@@ -53,19 +54,19 @@ public class ConnectionCredentialsService {
 
             if (conection.isEmpty()) {
                 LOGGER.error("DB connection with uuid: {} not found", connectionUuid);
-                throw new DbConnectionException("Database connection not found");
+                throw new DbConnectionException("Database connection not found", HttpStatus.NOT_FOUND);
             }
 
             ConnectionCredentialsEntity connectionEntity = conection.get();
             LOGGER.info("Database connection with uuid {} successfully retrieved", connectionUuid);
 
-            ConnectionCredentialsDto connectionDto = ConnectionCredentialsDto.builder().uuid(connectionEntity.getPublicId().toString()).alias(connectionEntity.getAlias()).dbType(connectionEntity.getDbType()).host(connectionEntity.getHost()).port(connectionEntity.getPort()).dbName(connectionEntity.getDbName()).username(connectionEntity.getUsername()).password(EncryptorUtils.decrypt(connectionEntity.getPassword())).build();
+            ConnectionCredentialsDto connectionDto = ConnectionCredentialsDto.builder().uuid(connectionEntity.getPublicId().toString()).alias(connectionEntity.getAlias()).dbType(connectionEntity.getDbType()).host(connectionEntity.getHost()).port(connectionEntity.getPort()).dbName(connectionEntity.getDbName()).username(connectionEntity.getUsername()).build();
 
             return ResponseEntity.ok(GlobalResponse.success("Database connection retrieved successfully", connectionDto));
 
         } catch (Exception e) {
             LOGGER.error("Error retrieving DB connection with uuid: {}", connectionUuid, e);
-            throw new DbConnectionException("Failed to retrieve database connection credentials");
+            throw new DbConnectionException("Failed to retrieve database connection credentials", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -75,7 +76,7 @@ public class ConnectionCredentialsService {
 
             var connections = repo.findAll().stream().map(connectionEntity -> {
                 try {
-                    return ConnectionCredentialsDto.builder().uuid(connectionEntity.getPublicId().toString()).alias(connectionEntity.getAlias()).dbType(connectionEntity.getDbType()).host(connectionEntity.getHost()).port(connectionEntity.getPort()).dbName(connectionEntity.getDbName()).username(connectionEntity.getUsername()).password(EncryptorUtils.decrypt(connectionEntity.getPassword())).build();
+                    return ConnectionCredentialsDto.builder().uuid(connectionEntity.getPublicId().toString()).alias(connectionEntity.getAlias()).dbType(connectionEntity.getDbType()).host(connectionEntity.getHost()).port(connectionEntity.getPort()).dbName(connectionEntity.getDbName()).username(connectionEntity.getUsername()).build();
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 }
@@ -86,14 +87,15 @@ public class ConnectionCredentialsService {
             return ResponseEntity.ok(GlobalResponse.success("Database connections retrieved successfully", connections));
         } catch (Exception e) {
             LOGGER.error("Error retrieving list of DB connections", e);
-            throw new DbConnectionException("Failed to retrieve database connections");
+            throw new DbConnectionException("Failed to retrieve database connections", HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 
+    @Transactional
     public ResponseEntity<GlobalResponse> deleteConnection(String connectionUuid) {
 
         LOGGER.info("Deleting DB connection with uuid: {}", connectionUuid);
-        ConnectionCredentialsEntity connectionEntity = repo.getByUuid(connectionUuid).orElseThrow(() -> new DbConnectionException("Database connection not found"));
+        ConnectionCredentialsEntity connectionEntity = repo.getByUuid(connectionUuid).orElseThrow(() -> new DbConnectionException("Database connection not found", HttpStatus.NOT_FOUND));
         repo.delete(connectionEntity);
         LOGGER.info("Database connection with uuid {} successfully has been deleted", connectionUuid);
 
@@ -105,7 +107,7 @@ public class ConnectionCredentialsService {
         try {
             LOGGER.info("Updating DB connection with UUID: {}", request.uuid());
 
-            ConnectionCredentialsEntity connectionEntity = repo.getByUuid(request.uuid()).orElseThrow(() -> new DbConnectionException("Database connection not found"));
+            ConnectionCredentialsEntity connectionEntity = repo.getByUuid(request.uuid()).orElseThrow(() -> new DbConnectionException("Database connection not found", HttpStatus.NOT_FOUND));
             connectionEntity.setAlias(request.alias());
             connectionEntity.setHost(request.host());
             connectionEntity.setPort(request.port());
@@ -117,7 +119,7 @@ public class ConnectionCredentialsService {
             LOGGER.info("Database connection with UUID {} successfully has been updated to", request.uuid());
         } catch (Exception e) {
             LOGGER.error("Error updating DB connection with alias: {}", request.alias(), e);
-            throw new DbConnectionException("Failed to update database connection credentials");
+            throw new DbConnectionException("Failed to update database connection credentials", HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
         return ResponseEntity.ok(GlobalResponse.success("Database connection updated successfully"));
