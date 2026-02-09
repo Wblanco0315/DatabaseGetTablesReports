@@ -13,6 +13,7 @@ import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+
 import java.io.File;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +68,7 @@ public class ReportService {
                 .addString("outputFilePath", fullPath)
                 .addString("sqlQuery", finalQuery)
                 .addLong("timestamp", System.currentTimeMillis())
+                .addString("webhookUrl", request.webhookUrl())
                 .toJobParameters();
 
         // 3. Ejecutar

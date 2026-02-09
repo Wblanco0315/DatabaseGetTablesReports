@@ -1,5 +1,6 @@
 package dev.wilsonblanco.reportgenerator.config;
 
+import dev.wilsonblanco.reportgenerator.batch.listerners.JobCompletionNotificationListener;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
@@ -19,9 +20,10 @@ public class BatchConfig {
 
     // --- JOB EXCEL ---
     @Bean
-    public Job excelExportJob(JobRepository jobRepository, @Qualifier("excelExportStep") Step exportStep) {
+    public Job excelExportJob(JobRepository jobRepository, @Qualifier("excelExportStep") Step exportStep, JobCompletionNotificationListener listener) {
         return new JobBuilder("excelExportJob", jobRepository)
                 .start(exportStep)
+                .listener(listener)
                 .build();
     }
 
@@ -39,11 +41,12 @@ public class BatchConfig {
                 .build();
     }
 
-    // --- JOB CSV (NUEVO) ---
+    // --- JOB CSV ---
     @Bean
-    public Job csvExportJob(JobRepository jobRepository, @Qualifier("csvExportStep") Step exportStep) {
+    public Job csvExportJob(JobRepository jobRepository, @Qualifier("csvExportStep") Step exportStep, JobCompletionNotificationListener listener) {
         return new JobBuilder("csvExportJob", jobRepository)
                 .start(exportStep)
+                .listener(listener)
                 .build();
     }
 
