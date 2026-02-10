@@ -18,9 +18,9 @@ public record ReportRequest(
 
         String tableName,
 
-        List<ReportColumn> columns,
+        List<ReportColumn> columns
 
-        String webhookUrl
+        //,String webhookUrl
 ) {
 
     public record ReportColumn(

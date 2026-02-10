@@ -2,17 +2,21 @@ package dev.wilsonblanco.reportgenerator.services;
 
 import dev.wilsonblanco.reportgenerator.dto.requests.ReportRequest;
 import dev.wilsonblanco.reportgenerator.dto.responses.GlobalResponse;
+import dev.wilsonblanco.reportgenerator.models.ReportHistoryEntity;
+import dev.wilsonblanco.reportgenerator.repositories.ReportHistoryEntityRepository;
+import dev.wilsonblanco.reportgenerator.repositories.ReportTemplatesRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
-import org.springframework.batch.core.explore.JobExplorer;
 import org.springframework.batch.core.launch.JobLauncher;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.util.List;
@@ -35,7 +39,11 @@ public class ReportService {
     @Qualifier("asyncJobLauncher")
     private final JobLauncher jobLauncher;
 
-    private final JobExplorer jobExplorer;
+    @Autowired
+    private final ReportTemplatesRepository reportTemplatesRepository;
+
+    @Autowired
+    private final ReportHistoryEntityRepository reportHistoryEntityRepository;
 
     private static final Pattern FORBIDDEN_KEYWORDS = Pattern.compile(
             "(?i)\\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|EXEC|MERGE|REPLACE|CALL)\\b"
@@ -62,13 +70,16 @@ public class ReportService {
         }
         String fullPath = basePath + request.name() + extension;
 
+        Long historyId = newReportHistory(request, fullPath, finalQuery);
+
         // 2. Parámetros
         JobParameters jobParameters = new JobParametersBuilder()
                 .addString("connectionUuid", request.connectionUuid())
+                .addLong("reportHistoryId", historyId)
                 .addString("outputFilePath", fullPath)
                 .addString("sqlQuery", finalQuery)
                 .addLong("timestamp", System.currentTimeMillis())
-                .addString("webhookUrl", request.webhookUrl())
+                //.addString("webhookUrl", request.webhookUrl())
                 .toJobParameters();
 
         // 3. Ejecutar
@@ -79,22 +90,6 @@ public class ReportService {
                         "jobId", execution.getId(),
                         "status", "STARTED",
                         "path", fullPath
-                ))
-        );
-    }
-
-    public ResponseEntity<GlobalResponse> checkStatus(Long jobId) throws Exception {
-        var execution = jobExplorer.getJobExecution(jobId);
-
-        if (execution == null) {
-            throw new Exception("No se encontró ningún trabajo con ID: " + jobId);
-        }
-
-        return ResponseEntity.ok(
-                GlobalResponse.success("Estado del reporte", Map.of(
-                        "job_id", jobId,
-                        "status", execution.getStatus().toString(),
-                        "isRunning", execution.isRunning()
                 ))
         );
     }
@@ -147,4 +142,45 @@ public class ReportService {
         return String.format("SELECT %s FROM %s", columnsPart, tableName);
     }
 
+    public ResponseEntity<GlobalResponse> createReportTemplate() {
+
+
+        return ResponseEntity.ok(
+                GlobalResponse.success("Plantilla creada")
+        );
+    }
+
+    public ResponseEntity<GlobalResponse> listReportTemplates() {
+
+        return ResponseEntity.ok(
+                GlobalResponse.success("Listado de plantillas")
+        );
+    }
+
+    public ResponseEntity<GlobalResponse> deleteReportTemplate(Long templateId) {
+        return ResponseEntity.ok(
+                GlobalResponse.success("Plantilla eliminada", Map.of())
+        );
+    }
+
+    @Transactional
+    protected Long newReportHistory(ReportRequest reportRequest, String fullPath, String Query) {
+
+        LOGGER.info("Creando registro histórico para reporte: {}", reportRequest.name());
+
+        ReportHistoryEntity history = ReportHistoryEntity.builder()
+                .reportName(reportRequest.name())
+                .reportFormat(fullPath.endsWith(".xlsx") ? "XLSX" : "CSV")
+                .connectionUuid(reportRequest.connectionUuid())
+                .filePath(fullPath)
+                .status("PENDING")
+                .query(Query)
+                .generationDuration("0s")
+                .build();
+
+        ReportHistoryEntity saved = reportHistoryEntityRepository.save(history);
+        return saved.getId();
+    }
 }
+
+

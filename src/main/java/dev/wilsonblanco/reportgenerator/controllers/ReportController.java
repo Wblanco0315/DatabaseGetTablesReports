@@ -19,13 +19,9 @@ public class ReportController {
         return reportService.generateExcelReport(request);
     }
 
-    @GetMapping("/status/{jobId}")
-    public ResponseEntity<GlobalResponse> checkStatus(@PathVariable Long jobId) throws Exception {
-        return reportService.checkStatus(jobId);
-    }
-
     @PostMapping("/generate/csv")
     public ResponseEntity<GlobalResponse> generateCsvReport(@RequestBody ReportRequest request) throws Exception {
         return reportService.generateCsvReport(request);
     }
+
 }
