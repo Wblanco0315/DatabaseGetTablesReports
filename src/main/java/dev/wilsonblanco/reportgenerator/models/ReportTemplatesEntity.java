@@ -11,10 +11,10 @@ import java.sql.Timestamp;
 @Getter
 @Setter
 @Entity
-@Table(name = "report_template")
+@Table(name = "report_templates")
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReportTemplates {
+public class ReportTemplatesEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id", nullable = false)

@@ -42,6 +42,6 @@ public class ScheduledReportsEntity {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "report_template_id", referencedColumnName = "id")
-    private ReportTemplates reportTemplate;
+    private ReportTemplatesEntity reportTemplate;
 
 }

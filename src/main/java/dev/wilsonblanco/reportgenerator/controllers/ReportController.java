@@ -1,7 +1,9 @@
 package dev.wilsonblanco.reportgenerator.controllers;
 
 import dev.wilsonblanco.reportgenerator.dto.requests.ReportRequest;
+import dev.wilsonblanco.reportgenerator.dto.requests.ReportTemplateRequest;
 import dev.wilsonblanco.reportgenerator.dto.requests.filters.ReportHistoryFilter;
+import dev.wilsonblanco.reportgenerator.dto.requests.filters.ReportTemplateFilter;
 import dev.wilsonblanco.reportgenerator.dto.responses.GlobalResponse;
 import dev.wilsonblanco.reportgenerator.services.ReportService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,4 +37,18 @@ public class ReportController {
     ) {
         return reportService.getReportHistory(filter, pageable);
     }
+
+    @PostMapping("/template/create")
+    public ResponseEntity<GlobalResponse> createReportTemplate(@RequestBody ReportTemplateRequest request) {
+        return reportService.createReportTemplate(request);
+    }
+
+    @GetMapping("/templates")
+    public ResponseEntity<GlobalResponse> getAllReportTemplates(
+            @ModelAttribute ReportTemplateFilter filter,
+            @PageableDefault(size = 20, sort = "id", direction = Sort.Direction.DESC) Pageable pageable
+    ) {
+        return reportService.getAllReportTemplates(filter, pageable);
+    }
+
 }

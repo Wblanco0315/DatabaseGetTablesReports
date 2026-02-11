@@ -3,14 +3,16 @@ package dev.wilsonblanco.reportgenerator.services;
 import dev.wilsonblanco.reportgenerator.dto.requests.ReportRequest;
 import dev.wilsonblanco.reportgenerator.dto.requests.ReportTemplateRequest;
 import dev.wilsonblanco.reportgenerator.dto.requests.filters.ReportHistoryFilter;
+import dev.wilsonblanco.reportgenerator.dto.requests.filters.ReportTemplateFilter;
 import dev.wilsonblanco.reportgenerator.dto.responses.GlobalResponse;
 import dev.wilsonblanco.reportgenerator.dto.responses.ReportHistoryResponse;
 import dev.wilsonblanco.reportgenerator.exceptions.ReportServiceException;
 import dev.wilsonblanco.reportgenerator.models.ReportHistoryEntity;
-import dev.wilsonblanco.reportgenerator.models.ReportTemplates;
+import dev.wilsonblanco.reportgenerator.models.ReportTemplatesEntity;
 import dev.wilsonblanco.reportgenerator.repositories.ReportHistoryRepository;
 import dev.wilsonblanco.reportgenerator.repositories.ReportTemplatesRepository;
 import dev.wilsonblanco.reportgenerator.specifications.ReportHistorySpecs;
+import dev.wilsonblanco.reportgenerator.specifications.ReportTemplateSpecs;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -154,16 +157,15 @@ public class ReportService {
     @Transactional
     public ResponseEntity<GlobalResponse> createReportTemplate(ReportTemplateRequest request) {
 
-
         LOGGER.info("Creando nueva plantilla de reporte con nombre: {}", request.templateName());
 
-        ReportTemplates template = ReportTemplates.builder()
+        ReportTemplatesEntity template = ReportTemplatesEntity.builder()
                 .templateName(request.templateName())
                 .templateContent(request.templateContent())
                 .description(request.description())
                 .build();
 
-        ReportTemplates saved = reportTemplatesRepository.save(template);
+        ReportTemplatesEntity saved = reportTemplatesRepository.save(template);
         Long newId = saved.getId();
 
         LOGGER.info("Nueva plantilla de reporte creada con ID: {}", newId);
@@ -173,11 +175,15 @@ public class ReportService {
         );
     }
 
-    public ResponseEntity<GlobalResponse> listReportTemplates() {
+    public ResponseEntity<GlobalResponse> getAllReportTemplates(ReportTemplateFilter filter, Pageable pageable) {
 
         LOGGER.info("Listando todas las plantillas de reporte");
 
-        var templates = reportTemplatesRepository.findAll().stream().map(template -> {
+        Specification<ReportTemplatesEntity> spec = ReportTemplateSpecs.withFilter(filter);
+
+        Page<ReportTemplatesEntity> templates = reportTemplatesRepository.findAll(spec, pageable);
+
+        Page<ReportTemplateRequest> DtoTemplates = templates.map(template -> {
             try {
                 return ReportTemplateRequest.builder()
                         .id(template.getId())
@@ -191,10 +197,10 @@ public class ReportService {
                 LOGGER.error("Error al mapear plantilla de reporte con ID: {}", template.getId(), e);
                 throw new ReportServiceException("Error al crear la plantilla", org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
             }
-        }).toList();
+        });
 
         return ResponseEntity.ok(
-                GlobalResponse.success("Listado de plantillas", Map.of("templates", templates))
+                GlobalResponse.success("Listado de plantillas", Map.of("templates", DtoTemplates))
         );
     }
 
@@ -208,7 +214,7 @@ public class ReportService {
             throw new ReportServiceException("No se encontro la plantilla de reporte con ID: " + request.id(), org.springframework.http.HttpStatus.NOT_FOUND);
         }
 
-        ReportTemplates template = optionalTemplate.get();
+        ReportTemplatesEntity template = optionalTemplate.get();
         template.setTemplateName(request.templateName());
         template.setTemplateContent(request.templateContent());
         template.setDescription(request.description());
@@ -251,6 +257,7 @@ public class ReportService {
                 .reportName(reportRequest.name())
                 .reportFormat(fullPath.endsWith(".xlsx") ? "EXCEL" : "CSV")
                 .connectionUuid(reportRequest.connectionUuid())
+                .generatedAt(Timestamp.valueOf(java.time.LocalDateTime.now()))
                 .filePath(fullPath)
                 .status("PENDING")
                 .query(Query)
