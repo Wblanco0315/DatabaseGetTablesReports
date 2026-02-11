@@ -1,10 +1,16 @@
 package dev.wilsonblanco.reportgenerator.services;
 
 import dev.wilsonblanco.reportgenerator.dto.requests.ReportRequest;
+import dev.wilsonblanco.reportgenerator.dto.requests.ReportTemplateRequest;
+import dev.wilsonblanco.reportgenerator.dto.requests.filters.ReportHistoryFilter;
 import dev.wilsonblanco.reportgenerator.dto.responses.GlobalResponse;
+import dev.wilsonblanco.reportgenerator.dto.responses.ReportHistoryResponse;
+import dev.wilsonblanco.reportgenerator.exceptions.ReportServiceException;
 import dev.wilsonblanco.reportgenerator.models.ReportHistoryEntity;
-import dev.wilsonblanco.reportgenerator.repositories.ReportHistoryEntityRepository;
+import dev.wilsonblanco.reportgenerator.models.ReportTemplates;
+import dev.wilsonblanco.reportgenerator.repositories.ReportHistoryRepository;
 import dev.wilsonblanco.reportgenerator.repositories.ReportTemplatesRepository;
+import dev.wilsonblanco.reportgenerator.specifications.ReportHistorySpecs;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,6 +20,9 @@ import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +52,7 @@ public class ReportService {
     private final ReportTemplatesRepository reportTemplatesRepository;
 
     @Autowired
-    private final ReportHistoryEntityRepository reportHistoryEntityRepository;
+    private final ReportHistoryRepository reportHistoryEntityRepository;
 
     private static final Pattern FORBIDDEN_KEYWORDS = Pattern.compile(
             "(?i)\\b(INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|EXEC|MERGE|REPLACE|CALL)\\b"
@@ -63,6 +72,7 @@ public class ReportService {
     }
 
     private ResponseEntity<GlobalResponse> launchJob(ReportRequest request, Job job, String extension) throws Exception {
+        LOGGER.info("Iniciando generación de reporte: {} con formato {} para la conexion", request.name(), extension, request.connectionUuid());
         String basePath = request.destinationPath();
         String finalQuery = resolveSqlQuery(request);
         if (!basePath.endsWith(File.separator) && !basePath.endsWith("/")) {
@@ -71,7 +81,6 @@ public class ReportService {
         String fullPath = basePath + request.name() + extension;
 
         Long historyId = newReportHistory(request, fullPath, finalQuery);
-
         // 2. Parámetros
         JobParameters jobParameters = new JobParametersBuilder()
                 .addString("connectionUuid", request.connectionUuid())
@@ -142,22 +151,92 @@ public class ReportService {
         return String.format("SELECT %s FROM %s", columnsPart, tableName);
     }
 
-    public ResponseEntity<GlobalResponse> createReportTemplate() {
+    @Transactional
+    public ResponseEntity<GlobalResponse> createReportTemplate(ReportTemplateRequest request) {
 
+
+        LOGGER.info("Creando nueva plantilla de reporte con nombre: {}", request.templateName());
+
+        ReportTemplates template = ReportTemplates.builder()
+                .templateName(request.templateName())
+                .templateContent(request.templateContent())
+                .description(request.description())
+                .build();
+
+        ReportTemplates saved = reportTemplatesRepository.save(template);
+        Long newId = saved.getId();
+
+        LOGGER.info("Nueva plantilla de reporte creada con ID: {}", newId);
 
         return ResponseEntity.ok(
-                GlobalResponse.success("Plantilla creada")
+                GlobalResponse.success("Plantilla creada con ID: " + newId, Map.of("report_template_id", newId))
         );
     }
 
     public ResponseEntity<GlobalResponse> listReportTemplates() {
 
+        LOGGER.info("Listando todas las plantillas de reporte");
+
+        var templates = reportTemplatesRepository.findAll().stream().map(template -> {
+            try {
+                return ReportTemplateRequest.builder()
+                        .id(template.getId())
+                        .templateName(template.getTemplateName())
+                        .templateContent(template.getTemplateContent())
+                        .description(template.getDescription())
+                        .createdAt(template.getCreatedAt())
+                        .updatedAt(template.getUpdatedAt())
+                        .build();
+            } catch (Exception e) {
+                LOGGER.error("Error al mapear plantilla de reporte con ID: {}", template.getId(), e);
+                throw new ReportServiceException("Error al crear la plantilla", org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR);
+            }
+        }).toList();
+
         return ResponseEntity.ok(
-                GlobalResponse.success("Listado de plantillas")
+                GlobalResponse.success("Listado de plantillas", Map.of("templates", templates))
         );
     }
 
-    public ResponseEntity<GlobalResponse> deleteReportTemplate(Long templateId) {
+    @Transactional
+    public ResponseEntity<GlobalResponse> updateReportTemplate(ReportTemplateRequest request) {
+
+        LOGGER.info("actualizando plantilla de reporte con ID: {}", request.id());
+
+        var optionalTemplate = reportTemplatesRepository.findById(request.id());
+        if (optionalTemplate.isEmpty()) {
+            throw new ReportServiceException("No se encontro la plantilla de reporte con ID: " + request.id(), org.springframework.http.HttpStatus.NOT_FOUND);
+        }
+
+        ReportTemplates template = optionalTemplate.get();
+        template.setTemplateName(request.templateName());
+        template.setTemplateContent(request.templateContent());
+        template.setDescription(request.description());
+
+        reportTemplatesRepository.save(template);
+
+        LOGGER.info("se ha actualizado la plantilla de reporte con ID: {}", request.id());
+
+        return ResponseEntity.ok(
+                GlobalResponse.success("Plantilla actualizada")
+        );
+    }
+
+    @Transactional
+    public ResponseEntity<GlobalResponse> deleteReportTemplate(ReportTemplateRequest request) {
+
+        LOGGER.info("se ha solicitado eliminar la plantilla de reporte con ID: {}", request.id());
+
+        var optionalTemplate = reportTemplatesRepository.findById(request.id());
+        if (optionalTemplate.isEmpty()) {
+            LOGGER.warn("No se encontró la plantilla de reporte con ID: {}", request.id());
+            throw new ReportServiceException("No se encontro la plantilla de reporte con ID: " + request.id(), org.springframework.http.HttpStatus.NOT_FOUND);
+        }
+
+        reportTemplatesRepository.deleteById(request.id());
+
+        LOGGER.info("se ha eliminado la plantilla de reporte con ID: {}", request.id());
+
         return ResponseEntity.ok(
                 GlobalResponse.success("Plantilla eliminada", Map.of())
         );
@@ -170,7 +249,7 @@ public class ReportService {
 
         ReportHistoryEntity history = ReportHistoryEntity.builder()
                 .reportName(reportRequest.name())
-                .reportFormat(fullPath.endsWith(".xlsx") ? "XLSX" : "CSV")
+                .reportFormat(fullPath.endsWith(".xlsx") ? "EXCEL" : "CSV")
                 .connectionUuid(reportRequest.connectionUuid())
                 .filePath(fullPath)
                 .status("PENDING")
@@ -179,8 +258,33 @@ public class ReportService {
                 .build();
 
         ReportHistoryEntity saved = reportHistoryEntityRepository.save(history);
+        LOGGER.info("Registro historico creado con ID: {}", saved.getId());
         return saved.getId();
     }
+
+    public ResponseEntity<GlobalResponse> getReportHistory(ReportHistoryFilter filter, Pageable pageable) {
+
+        Specification<ReportHistoryEntity> spec = ReportHistorySpecs.withFilter(filter);
+
+        Page<ReportHistoryEntity> entities = reportHistoryEntityRepository.findAll(spec, pageable);
+
+        Page<ReportHistoryResponse> dtoPage = entities.map(entity -> ReportHistoryResponse.builder()
+                .id(entity.getId())
+                .reportName(entity.getReportName())
+                .query(entity.getQuery())
+                .reportFormat(entity.getReportFormat())
+                .status(entity.getStatus())
+                .generationDuration(entity.getGenerationDuration())
+                .filePath(entity.getFilePath())
+                .details(entity.getDetails())
+                .build()
+        );
+
+        return ResponseEntity.ok(
+                GlobalResponse.success("Historial de reportes obtenido correctamente", Map.of("history", dtoPage))
+        );
+    }
+
 }
 
 

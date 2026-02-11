@@ -19,12 +19,12 @@ public record GlobalErrorResponse(
         List<ValidationError> details
 ) {
     // Sin detalles
-    public static GlobalErrorResponse create(int status, String error, String message, String path) {
+    public static GlobalErrorResponse create(String error, String message, String path) {
         return new GlobalErrorResponse(LocalDateTime.now(), message, false, error, path, null);
     }
 
     // Con detalles
-    public static GlobalErrorResponse create(int status, String error, String message, String path, List<ValidationError> details) {
+    public static GlobalErrorResponse create(String error, String message, String path, List<ValidationError> details) {
         return new GlobalErrorResponse(LocalDateTime.now(), message, false, error, path, details);
     }
 

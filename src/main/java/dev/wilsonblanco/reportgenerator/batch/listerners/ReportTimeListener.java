@@ -1,7 +1,7 @@
 package dev.wilsonblanco.reportgenerator.batch.listerners;
 
 import dev.wilsonblanco.reportgenerator.models.ReportHistoryEntity;
-import dev.wilsonblanco.reportgenerator.repositories.ReportHistoryEntityRepository;
+import dev.wilsonblanco.reportgenerator.repositories.ReportHistoryRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobExecutionListener;
@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class ReportTimeListener implements JobExecutionListener {
 
-    private final ReportHistoryEntityRepository repository;
+    private final ReportHistoryRepository repository;
 
     @Override
     public void afterJob(JobExecution jobExecution) {

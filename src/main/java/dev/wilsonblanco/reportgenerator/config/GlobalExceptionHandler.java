@@ -2,6 +2,7 @@ package dev.wilsonblanco.reportgenerator.config;
 
 import dev.wilsonblanco.reportgenerator.dto.requests.GlobalErrorResponse;
 import dev.wilsonblanco.reportgenerator.exceptions.DbConnectionException;
+import dev.wilsonblanco.reportgenerator.exceptions.ReportServiceException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +36,6 @@ public class GlobalExceptionHandler {
                 .collect(Collectors.toList());
 
         GlobalErrorResponse response = GlobalErrorResponse.create(
-                HttpStatus.BAD_REQUEST.value(),
                 "Validation Error",
                 "field validation error",
                 request.getRequestURI(),
@@ -51,7 +51,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<GlobalErrorResponse> handleGeneralExceptions(Exception ex, HttpServletRequest request) {
 
         GlobalErrorResponse response = GlobalErrorResponse.create(
-                HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 "Internal Server Error",
                 ex.getMessage(),
                 request.getRequestURI()
@@ -66,7 +65,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<GlobalErrorResponse> handleDbConnectionException(DbConnectionException ex, HttpServletRequest request) {
 
         GlobalErrorResponse response = GlobalErrorResponse.create(
-                HttpStatus.BAD_REQUEST.value(),
                 "Database Connection Error",
                 ex.getMessage(),
                 request.getRequestURI()
@@ -76,4 +74,33 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<GlobalErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex, HttpServletRequest request) {
+
+        GlobalErrorResponse response = GlobalErrorResponse.create(
+                "Illegal Argument Error",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+
+        LOGGER.error(response.toString());
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+    }
+
+    @ExceptionHandler(ReportServiceException.class)
+    public ResponseEntity<GlobalErrorResponse> handleReportServiceException(ReportServiceException ex, HttpServletRequest request) {
+
+        GlobalErrorResponse response = GlobalErrorResponse.create(
+                "Report Service Error",
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+
+        LOGGER.error(response.toString());
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+
 }
