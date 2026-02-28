@@ -29,6 +29,11 @@ public record GlobalResponse<T>(
 
     // 4. Respuesta Exitosa vacía por defecto
     public static <T> GlobalResponse<T> ok() {
-        return new GlobalResponse<>(LocalDateTime.now(),"Successful operation",  true, null);
+        return new GlobalResponse<>(LocalDateTime.now(), "Successful operation", true, null);
+    }
+
+    // 5. Respuesta de Error
+    public static <T> GlobalResponse<T> error(String message) {
+        return new GlobalResponse<>(LocalDateTime.now(), message, false, null);
     }
 }

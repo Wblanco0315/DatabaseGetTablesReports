@@ -1,5 +1,7 @@
 package dev.wilsonblanco.reportgenerator.batch.read;
 
+import dev.wilsonblanco.reportgenerator.models.ReportHistoryEntity;
+import dev.wilsonblanco.reportgenerator.repositories.ReportHistoryRepository;
 import dev.wilsonblanco.reportgenerator.services.DataBaseConnectionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.batch.core.configuration.annotation.StepScope;
@@ -17,16 +19,22 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class DynamicJdbcReader {
     private final DataBaseConnectionService connectionService;
+    private final ReportHistoryRepository reportHistoryRepository;
 
     @Bean
     @StepScope
     public JdbcCursorItemReader<Map<String, Object>> databaseReader(
             @Value("#{jobParameters['connectionUuid']}") String connectionUuid,
-            @Value("#{jobParameters['sqlQuery']}") String sqlQuery
+            @Value("#{jobParameters['reportHistoryId']}") Long reportHistoryId
     ) throws Exception {
 
         // 1. Obtenemos el DataSource REAL usando tu servicio
         DataSource dataSource = connectionService.getDataSource(connectionUuid);
+
+        // Cargar la consulta desde el historial usando reportHistoryId
+        ReportHistoryEntity history = reportHistoryRepository.findById(reportHistoryId)
+                .orElseThrow(() -> new IllegalArgumentException("No se encontró el historial con ID: " + reportHistoryId));
+        String sqlQuery = history.getQuery();
 
         // 2. Retornamos el Reader configurado
         return new JdbcCursorItemReaderBuilder<Map<String, Object>>()

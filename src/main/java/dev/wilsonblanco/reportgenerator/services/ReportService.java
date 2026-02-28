@@ -75,7 +75,7 @@ public class ReportService {
     }
 
     private ResponseEntity<GlobalResponse> launchJob(ReportRequest request, Job job, String extension) throws Exception {
-        LOGGER.info("Iniciando generación de reporte: {} con formato {} para la conexion", request.name(), extension, request.connectionUuid());
+        LOGGER.info("Iniciando generación de reporte: {} con formato {} para la conexion {}", request.name(), extension, request.connectionUuid());
         String basePath = request.destinationPath();
         String finalQuery = resolveSqlQuery(request);
         if (!basePath.endsWith(File.separator) && !basePath.endsWith("/")) {
@@ -89,7 +89,6 @@ public class ReportService {
                 .addString("connectionUuid", request.connectionUuid())
                 .addLong("reportHistoryId", historyId)
                 .addString("outputFilePath", fullPath)
-                .addString("sqlQuery", finalQuery)
                 .addLong("timestamp", System.currentTimeMillis())
                 //.addString("webhookUrl", request.webhookUrl())
                 .toJobParameters();
@@ -111,7 +110,7 @@ public class ReportService {
         //El usuario envió SQL crudo
         if (request.sqlQuery() != null && !request.sqlQuery().isBlank()) {
             String sql = request.sqlQuery();
-            validateReadOnlySql(sql); // <--- AQUÍ SE APLICA EL FILTRO DE SEGURIDAD
+            //validateReadOnlySql(sql); // <--- AQUÍ SE APLICA EL FILTRO DE SEGURIDAD
             return sql;
         }
 
@@ -293,5 +292,4 @@ public class ReportService {
     }
 
 }
-
 

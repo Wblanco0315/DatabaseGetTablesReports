@@ -29,4 +29,8 @@ public class DataBaseController {
 
     }
 
+    @GetMapping("/test/{connectionUuid}")
+    public ResponseEntity<GlobalResponse> testConnection(@PathVariable String connectionUuid) throws Exception {
+        return connectionService.testConnection(connectionUuid);
+    }
 }

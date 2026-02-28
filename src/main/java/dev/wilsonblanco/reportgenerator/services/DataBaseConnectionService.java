@@ -128,4 +128,18 @@ public class DataBaseConnectionService {
             throw new RuntimeException("Error al listar las columnas: " + e.getMessage(), e);
         }
     }
+
+    public ResponseEntity<GlobalResponse> testConnection(String connectionUuid) throws Exception {
+        DataSource dataSource = getDataSource(connectionUuid);
+
+        try (Connection connection = dataSource.getConnection()) {
+            if (connection.isValid(5)) {
+                return ResponseEntity.ok(GlobalResponse.success("Conexión exitosa", null));
+            } else {
+                return ResponseEntity.status(500).body(GlobalResponse.error("Conexión no válida"));
+            }
+        } catch (SQLException e) {
+            return ResponseEntity.status(500).body(GlobalResponse.error("Error al probar la conexión: " + e.getMessage()));
+        }
+    }
 }
